@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FREGAHOUSE – Choix & Coûts</title>
+<style>
+  :root{
+    --teal:#0f9d9a;
+    --bg:#0c7c79;
+    --ink:#0b2e2d;
+    --card:#ffffff;
+    --muted:#4a6b6a;
+    --ring:#0fb3af;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    background:linear-gradient(180deg, var(--teal) 0%, var(--bg) 100%);
+    color:var(--ink); min-height:100vh;
+  }
+  .wrap{max-width:1100px; margin:0 auto;}
+  h1{color:#eaffff; margin:0 0 8px; text-shadow:0 2px 10px rgba(0,0,0,.25)}
+  .sub{color:#dcfffe; margin:0 0 18px; opacity:.9}
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    box-shadow:0 10px 30px rgba(0,0,0,.15); padding:20px;
+  }
+  table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:12px;}
+  thead th{
+    text-align:left; padding:12px 14px; background:#e8fffe; color:#064c4a;
+    border-bottom:2px solid #cff5f3; position:sticky; top:0; z-index:1;
+  }
+  tbody td{padding:10px 12px; border-bottom:1px solid #eef5f5; vertical-align:middle;}
+  tbody tr:hover td{background:#f6fbfb}
+  .row-header{font-weight:700; color:#0a3f3d; width:34%;}
+  .section-row td{
+    background:#eefcfc; color:#064c4a; font-weight:800; letter-spacing:.2px;
+    border-top:2px solid #cff5f3; border-bottom:2px solid #cff5f3;
+  }
+  .section-title{padding:8px 0; text-transform:uppercase}
+  select{
+    width:100%; padding:10px 12px; border:1.5px solid #d2eceb; border-radius:10px; background:#fff;
+    font-size:.95rem; outline:none; transition:.15s border-color ease;
+  }
+  select:focus{ border-color:var(--ring); box-shadow:0 0 0 3px rgba(15,179,175,.15); }
+  .actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:14px;}
+  button{
+    padding:12px 16px; border:none; border-radius:12px; background:#0fb3af; color:#003635; font-weight:700;
+    cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.15); transition:.15s transform ease, .2s box-shadow ease;
+  }
+  button:hover{transform:translateY(-1px); box-shadow:0 10px 22px rgba(0,0,0,.18)}
+  button.secondary{background:#e8fffe; color:#0b4d4b; border:1px solid #bfecea}
+  .result{
+    margin-top:18px; background:#fff; border:1.5px solid #cff5f3; border-radius:14px; padding:16px;
+  }
+  .result h3{margin:6px 0 10px; color:#084d4b}
+  .grid{display:grid; grid-template-columns: 5fr 5fr 2fr; gap:8px}
+  .k{font-weight:700; color:#0a3f3d}
+  .v{color:#184a49}
+  .c{text-align:right; font-variant-numeric:tabular-nums; color:#0a3f3d}
+  .total{margin-top:10px; padding-top:10px; border-top:2px dashed #cff5f3; display:flex; justify-content:flex-end; gap:18px; align-items:center}
+  .total .label{font-weight:800; color:#083c3b}
+  .total .value{font-weight:900; font-size:1.15rem}
+  .note{font-size:.9rem; color:var(--muted); margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FREGAHOUSE – Configurateur</h1>
+  <p class="sub">Choisissez une option dans chaque ligne. Le résumé et le coût total se mettent à jour automatiquement.</p>
+
+  <div class="card">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Catégorie de choix</th>
+          <th>Option 1</th>
+          <th>Option 2</th>
+          <th>Option 3</th>
+        </tr>
+      </thead>
+      <tbody><!-- injected by JS --></tbody>
+    </table>
+
+    <div class="actions">
+      <button id="reset">Réinitialiser</button>
+      <button id="copy" class="secondary">Copier le résumé</button>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <h3>Résultat & coûts</h3>
+      <div class="grid" id="summary"></div>
+      <div class="total">
+        <div class="label">Coût total estimé (€)</div>
+        <div class="value" id="total">0</div>
+      </div>
+      <p class="note">💡 Modifiez les prix directement dans le tableau <code>rows</code> du script.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * ⚙️ Modifiez ICI les prix/labels. Tous les montants sont des exemples-placards.
+ * - Laissez cost: 0 pour l’option “de base”.
+ * - Vous pouvez supprimer une option (ou laisser label:"", hidden:true) pour masquer une colonne sur une ligne.
+ * - type: "section" crée un séparateur de section plein largeur.
+ */
+const rows = [
+  { type:"section", title:"I. CHOIX STRUCTURELS" },
+  {
+    header:"Gamme de Construction",
+    opt1:{ label:"Gamme 1 (Standard)", cost: 0 },
+    opt2:{ label:"Gamme 2 (Confort)",  cost: 15000 },
+    opt3:{ label:"Gamme 3 (Prestige)", cost: 30000 }
+  },
+  {
+    header:"Niveau",
+    opt1:{ label:"Rez-de-Chaussée (RDC)", cost: 0 },
+    opt2:{ label:"R+1 (À Étage)",        cost: 12000 },
+    opt3:{ label:"", hidden:true } // pas d'option 3
+  },
+
+  { type:"section", title:"II. AMÉNAGEMENTS INTÉRIEURS" },
+  {
+    header:"Cuisine",
+    opt1:{ label:"Base (Modèle Initial)", cost: 0 },
+    opt2:{ label:"Moderne",               cost: 6000 },
+    opt3:{ label:"Bois",                  cost: 8000 }
+  },
+  {
+    header:"Placards",
+    opt1:{ label:"Base (Modèle Initial)",    cost: 0 },
+    opt2:{ label:"Qualité 2 (Moyenne)",      cost: 2500 },
+    opt3:{ label:"Qualité 3 (Supérieure)",   cost: 4200 }
+  },
+  {
+    header:"Peinture",
+    opt1:{ label:"Base (Modèle Initial)",    cost: 0 },
+    opt2:{ label:"Qualité 2 (Moyenne)",      cost: 1800 },
+    opt3:{ label:"Qualité 3 (Supérieure)",   cost: 3200 }
+  },
+  {
+    header:"Faïence",
+    opt1:{ label:"Base (Modèle Initial)",    cost: 0 },
+    opt2:{ label:"Qualité 2 (Moyenne)",      cost: 2000 },
+    opt3:{ label:"Qualité 3 (Supérieure)",   cost: 3600 }
+  },
+  {
+    header:"Salle de Bain",
+    opt1:{ label:"Base (Modèle Initial)", cost: 0 },
+    opt2:{ label:"Option 2 (Moyenne)",   cost: 3500 },
+    opt3:{ label:"Option 3 (Premium)",   cost: 6500 }
+  },
+  {
+    header:"Revêtement de Sol",
+    opt1:{ label:"Base (Modèle Initial)", cost: 0 },
+    opt2:{ label:"Option 2",              cost: 2800 },
+    opt3:{ label:"Option 3",              cost: 5200 }
+  },
+
+  { type:"section", title:"III. ÉQUIPEMENTS OPTIONNELS" },
+  {
+    header:"Pompe à Chaleur (PAC)",
+    opt1:{ label:"OUI (Avec PAC Air/Eau)",   cost: 9500 },
+    opt2:{ label:"NON (Chauffage Standard)", cost: 0 },
+    opt3:{ label:"", hidden:true }
+  },
+  {
+    header:"Domotique",
+    opt1:{ label:"OUI (Gestion Énergétique)", cost: 2200 },
+    opt2:{ label:"NON",                        cost: 0 },
+    opt3:{ label:"", hidden:true }
+  },
+  {
+    header:"Toiture Photovoltaïque",
+    opt1:{ label:"OUI (Intégrée)", cost: 11000 },
+    opt2:{ label:"NON",             cost: 0 },
+    opt3:{ label:"", hidden:true }
+  },
+  {
+    header:"Isolation/Menuiseries",
+    opt1:{ label:"OUI (Renforcée & Premium)", cost: 7000 },
+    opt2:{ label:"NON (Standard)",            cost: 0 },
+    opt3:{ label:"", hidden:true }
+  },
+  {
+    header:"Terrasse",
+    opt1:{ label:"Terrasse Bois",            cost: 4500 },
+    opt2:{ label:"Terrasse Pierre Naturelle", cost: 9000 },
+    opt3:{ label:"", hidden:true }
+  },
+
+  { type:"section", title:"IV. RÉSULTAT FINAL" },
+  {
+    header:"Projet Final",
+    opt1:{ label:"Option 1", cost: 0 },
+    opt2:{ label:"Option 2", cost: 0 },
+    opt3:{ label:"Option 3", cost: 0 }
+  }
+];
+
+// ---------- Rendering ----------
+const tbody = document.querySelector("#tbl tbody");
+const summaryEl = document.getElementById("summary");
+const totalEl = document.getElementById("total");
+const btnReset = document.getElementById("reset");
+const btnCopy  = document.getElementById("copy");
+
+function euro(n){
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits:0 }).format(n);
+}
+
+function createSelect(opt, aria){
+  const sel = document.createElement("select");
+  sel.setAttribute("aria-label", aria);
+  const add = (o)=>{
+    if (!o || o.hidden) return;
+    const el = document.createElement("option");
+    el.value = o.label || "";
+    el.textContent = o.label || "—";
+    el.dataset.cost = Number(o.cost||0);
+    sel.appendChild(el);
+  };
+  // Placeholders as first option
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = "—";
+  blank.dataset.cost = 0; sel.appendChild(blank);
+
+  add(opt.opt1); add(opt.opt2); add(opt.opt3);
+  sel.addEventListener("change", updateSummary);
+  return sel;
+}
+
+function build(){
+  rows.forEach(row=>{
+    if (row.type === "section"){
+      const tr = document.createElement("tr");
+      tr.className = "section-row";
+      tr.innerHTML = `<td colspan="4"><div class="section-title">${row.title}</div></td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    const tr = document.createElement("tr");
+    const th = document.createElement("td");
+    th.className = "row-header";
+    th.textContent = row.header;
+    tr.appendChild(th);
+
+    const c1 = document.createElement("td");
+    const c2 = document.createElement("td");
+    const c3 = document.createElement("td");
+    c1.appendChild(createSelect(row, `${row.header} – Option 1`));
+    c2.appendChild(createSelect({opt1:row.opt2}, `${row.header} – Option 2`));
+    c3.appendChild(createSelect({opt1:row.opt3}, `${row.header} – Option 3`));
+    tr.appendChild(c1); tr.appendChild(c2); tr.appendChild(c3);
+    tbody.appendChild(tr);
+  });
+}
+
+function readSelections(){
+  const out = [];
+  [...tbody.rows].forEach(tr=>{
+    // skip section rows (colspan)
+    if (tr.cells.length === 1) return;
+    const header = tr.cells[0].textContent.trim();
+    const selects = tr.querySelectorAll("select");
+    const picked = [...selects].map((s,i)=>{
+      const o = s.options[s.selectedIndex];
+      return {
+        label: o && o.value ? o.value : "",
+        cost: o ? Number(o.dataset.cost||0) : 0,
+        col: i+1
+      };
+    });
+    out.push({header, picked});
+  });
+  return out;
+}
+
+function updateSummary(){
+  const selections = readSelections();
+  summaryEl.innerHTML = "";
+  let total = 0;
+
+  selections.forEach(({header, picked})=>{
+    const choice = picked.find(p=>p.label); // show only the selected (non-empty) if any
+    const show = choice || {label:"—", cost:0};
+    total += show.cost;
+
+    const k = document.createElement("div");
+    k.className = "k"; k.textContent = header;
+
+    const v = document.createElement("div");
+    v.className = "v";
+    v.textContent = `${show.label}${show.label && show.cost ? ` ( +€${euro(show.cost)} )` : ""}`;
+
+    const c = document.createElement("div");
+    c.className = "c"; c.textContent = show.cost ? `€${euro(show.cost)}` : "€0";
+
+    summaryEl.appendChild(k); summaryEl.appendChild(v); summaryEl.appendChild(c);
+  });
+
+  totalEl.textContent = euro(total);
+}
+
+function resetAll(){
+  tbody.querySelectorAll("select").forEach(s=> s.value = "");
+  updateSummary();
+}
+
+async function copySummary(){
+  const selections = readSelections();
+  let total = 0;
+  const lines = selections.map(({header, picked})=>{
+    const choice = picked.find(p=>p.label) || {label:"—", cost:0};
+    total += choice.cost;
+    return `${header}: ${choice.label || "—"}  |  €${euro(choice.cost)}`;
+  });
+  const text = `Résumé des choix\n` + lines.join("\n") + `\n\nTotal: €${euro(total)}`;
+  try{
+    await navigator.clipboard.writeText(text);
+    btnCopy.textContent = "Résumé copié !";
+    setTimeout(()=> btnCopy.textContent = "Copier le résumé", 1400);
+  }catch(e){
+    alert("Copie auto impossible. Sélectionnez puis Ctrl/Cmd+C.");
+  }
+}
+
+// init
+build();
+updateSummary();
+btnReset.addEventListener("click", resetAll);
+btnCopy.addEventListener("click", copySummary);
+</script>
+</body>
+</html>
